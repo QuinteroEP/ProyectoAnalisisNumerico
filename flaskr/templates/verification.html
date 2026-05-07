@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirShield - Verificacion de estadisticas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:        #101c24;
+            --surface:   #121e23;
+            --border:    #1a2830;
+            --border-bright: #234050;
+            --text:      #c8dde6;
+            --muted:     #4a6878;
+            --accent:    #0c89ef;
+            --accent2:   #003e5d;
+            --warn:      #ffb830;
+            --danger:    #ff4455;
+            --glow:      rgba(0,229,176,0.18);
+            --glow2:     rgba(0,170,255,0.12);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Syne', sans-serif;
+            font-size: 15px;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Background grid texture ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0,229,176,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,229,176,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Ambient glow blobs ── */
+        body::after {
+            content: '';
+            position: fixed;
+            width: 600px; height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,229,176,0.06) 0%, transparent 70%);
+            top: -200px; left: -200px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ─────────────────────── HEADER ─────────────────────── */
+        header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(8,13,16,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            height: 64px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        .logo {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .logo-text {
+            font-size: 1.15rem; font-weight: 800; letter-spacing: 0.08em;
+            color: #fff;
+        }
+        .logo-text span { color: var(--accent); }
+
+        .header-meta {
+            display: flex; align-items: center; gap: 1.5rem;
+        }
+        .status-pill {
+            display: flex; align-items: center; gap: 6px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--accent);
+            background: rgba(0,229,176,0.07);
+            border: 1px solid rgba(0,229,176,0.2);
+            border-radius: 20px;
+            padding: 4px 12px;
+            letter-spacing: 0.05em;
+        }
+        .status-dot {
+            width: 7px; height: 7px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: blink 1.4s ease-in-out infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+        .timestamp {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--muted);
+            letter-spacing: 0.04em;
+        }
+
+        /* ─────────────────────── MAIN LAYOUT ─────────────────────── */
+        main {
+            position: relative; z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2.5rem 2rem 4rem;
+            display: grid;
+            gap: 2rem;
+        }
+
+        /* ─────────────────────── SECTION TITLE ─────────────────────── */
+        .section-header {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 1.25rem;
+        }
+        .section-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            letter-spacing: 0.04em;
+        }
+        .section-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border-bright), transparent);
+        }
+
+        /* ─────────────────────── KPI STRIP ─────────────────────── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .kpi-card {
+            background: var(--surface);
+            padding: 1.4rem 1.5rem;
+            position: relative;
+            transition: background 0.2s;
+        }
+        .kpi-card:hover { background: #111d24; }
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+        }
+        .kpi-card.good::before    { background: var(--accent); }
+        .kpi-card.moderate::before{ background: var(--warn); }
+        .kpi-card.bad::before     { background: var(--danger); }
+
+        .kpi-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.62rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 0.6rem;
+        }
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
+            color: #fff;
+        }
+        .kpi-value .unit {
+            font-size: 0.85rem;
+            font-weight: 400;
+            color: var(--muted);
+            margin-left: 4px;
+        }
+        .kpi-sub {
+            margin-top: 0.5rem;
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+        .kpi-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            margin-top: 0.4rem;
+        }
+        .badge-good    { background: rgba(0,229,176,0.12); color: var(--accent); }
+        .badge-moderate{ background: rgba(255,184,48,0.12); color: var(--warn); }
+        .badge-bad     { background: rgba(255,68,85,0.12);  color: var(--danger); }
+
+        /* ─────────────────────── CHART PANELS ─────────────────────── */
+        .chart-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            animation: fadeUp 0.5s ease both;
+        }
+        @keyframes fadeUp {
+            from { opacity:0; transform: translateY(16px); }
+            to   { opacity:1; transform: translateY(0); }
+        }
+        .chart-panel:nth-child(2) { animation-delay: 0.08s; }
+        .chart-panel:nth-child(3) { animation-delay: 0.16s; }
+
+        .panel-header {
+            padding: 1.1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 1rem;
+        }
+        .panel-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            color: var(--text);
+        }
+        .panel-tag {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            letter-spacing: 0.1em;
+            color: var(--accent2);
+            background: rgba(0,170,255,0.08);
+            border: 1px solid rgba(0,170,255,0.18);
+            padding: 3px 9px;
+            border-radius: 4px;
+        }
+        .panel-body {
+            padding: 1.5rem;
+        }
+
+        /* ─────────────────────── CHART CONTAINER ─────────────────────── */
+        .chart-wrap {
+            width: 100%;
+            overflow: hidden;
+            border-radius: 6px;
+        }
+        .chart-wrap svg,
+        .chart-wrap canvas {
+            display: block;
+            width: 100% !important;
+            max-width: 100%;
+        }
+
+        /* ─────────────────────── TWO-COL CHARTS ─────────────────────── */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        @media (max-width: 860px) {
+            .charts-row { grid-template-columns: 1fr; }
+        }
+
+        /* ─────────────────────── FOOTER ─────────────────────── */
+        footer {
+            position: relative; z-index: 1;
+            border-top: 1px solid var(--border);
+            padding: 1.2rem 2rem;
+            display: flex; align-items: center; justify-content: space-between;
+            max-width: 1400px; margin: 0 auto;
+        }
+        .footer-text {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--muted);
+            letter-spacing: 0.06em;
+        }
+        .footer-accent { color: var(--accent); }
+
+        /* ─────────────────────── AQI SCALE BAR ─────────────────────── */
+        .aqi-scale {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 0.6rem;
+        }
+        .aqi-seg {
+            height: 4px;
+            flex: 1;
+            border-radius: 2px;
+        }
+        .aqi-seg:nth-child(1) { background: #00e5b0; }
+        .aqi-seg:nth-child(2) { background: #b8e500; }
+        .aqi-seg:nth-child(3) { background: #ffb830; }
+        .aqi-seg:nth-child(4) { background: #ff7730; }
+        .aqi-seg:nth-child(5) { background: #ff4455; }
+        .aqi-seg:nth-child(6) { background: #9b00ff; }
+
+        /* ─────────────────────── SCROLLBAR ─────────────────────── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+        .section-alert {
+        display: flex; align-items: center; gap: 12px;
+        margin-bottom: 1.25rem;
+        margin-left: 1.25rem;
+        margin-right: 1.25rem;
+
+        background-color: #546f81;   /* light warning background */
+        padding: 12px 16px;
+        border-radius: 8px;
+
+        color: rgb(255, 255, 255);
+        font-family: system-ui, sans-serif;
+        }
+
+        .section-title-alert {
+            font-size: 0.95rem;
+            line-height: 1.4;
+            letter-spacing: 0.04em;
+        }
+
+        a{
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .logo-icon img {
+            height: 38px;
+            width: auto;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<header>
+    <div class="logo">
+        <div class="logo-icon"> <img src="{{ url_for('static', filename='Logo.png') }}"> </div>
+        <div class="logo-text">Air<span>Shield</span></div>
+    </div>
+    <div class="header-meta">
+        <div class="status-pill">
+            <a href="/">Volver</a>
+        </div>
+    </div>
+</header>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<main>
+    <!-- Spline charts -->
+    <section>
+        <div class="section-header">
+            <span class="section-title">Splines Cubicos Vs Splines Cubicos de Hermite</span>
+            <span class="section-line"></span>
+        </div>
+        <div class="chart-panel">
+            <div class="panel-body">
+                <div class="chart-wrap">
+                    {{ splines | safe }}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="section-header">
+            <span class="section-title">Intervalos de Confianza por Bootstraping</span>
+            <span class="section-line"></span>
+        </div>
+        <div class="chart-panel">
+            <div class="panel-body">
+                <div class="chart-wrap">
+                    {{ bootstrap | safe }}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="section-header">
+            <span class="section-title">Error por validacion cruzada LOOVC</span>
+            <span class="section-line"></span>
+        </div>
+        <div class="chart-panel">
+            <div class="panel-body">
+                {{ errors | safe }}
+            </div>
+            <div class="section-alert">
+                <span class="section-title-alert">Error promedio: <span style="color: #00e5b0;">{{ rmse }}</span></span>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- ══════════════ FOOTER ══════════════ -->
+<footer>
+    <span class="footer-text">AirShield © 2026 — Red de sensores de calidad del aire</span>
+</footer>
+
+</body>
+</html>
