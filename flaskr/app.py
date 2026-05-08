@@ -47,7 +47,7 @@ def graphs():
     y = y[sorted_indices]
     cs = CubicSpline(x,y)
 
-    x_interp = np.linspace(np.min(x), np.max(x), 50)
+    x_interp = np.arange(np.min(x), np.max(x) + 0.1, 0.1)
     y_interp = cs(x_interp)
 
     F = cs.antiderivative()
